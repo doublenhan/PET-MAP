@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PetMap — Kiến trúc & Chi tiết Dự án</title>
+<style>
+  :root{
+    --bg:#0f172a; --bg2:#0b2e26; --panel:#ffffff; --ink:#0f172a; --muted:#64748b;
+    --line:#e2e8f0; --emerald:#059669; --emerald-d:#047857; --emerald-l:#d1fae5;
+    --amber:#d97706; --rose:#e11d48; --indigo:#4f46e5; --teal:#0d9488; --sky:#0284c7;
+    --radius:16px; --shadow:0 10px 30px -12px rgba(15,23,42,.25);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Plus Jakarta Sans",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+    color:var(--ink);background:#f1f5f9;line-height:1.6;letter-spacing:-.01em;
+  }
+  a{color:var(--emerald-d);text-decoration:none}
+  a:hover{text-decoration:underline}
+  code,.mono{font-family:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.85em}
+  code{background:#f1f5f9;border:1px solid var(--line);border-radius:6px;padding:1px 6px;color:#0b3b30}
+
+  /* Layout */
+  .wrap{max-width:1180px;margin:0 auto;padding:0 20px}
+  header.hero{
+    background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 55%,#064e3b 100%);
+    color:#fff;padding:54px 0 64px;position:relative;overflow:hidden;
+  }
+  header.hero::after{content:"🐾";position:absolute;right:-20px;top:-30px;font-size:260px;opacity:.06}
+  .badge-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:18px}
+  .badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,.1);
+    border:1px solid rgba(255,255,255,.18);color:#d1fae5;font-size:12px;font-weight:700;
+    padding:5px 11px;border-radius:999px}
+  .hero h1{font-size:40px;font-weight:900;letter-spacing:-1px}
+  .hero .sub{color:#6ee7b7;font-weight:800;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+  .hero p.lead{color:#cbd5e1;max-width:720px;margin-top:12px;font-size:16px}
+
+  /* Nav */
+  nav.toc{position:sticky;top:0;z-index:20;background:rgba(255,255,255,.92);backdrop-filter:blur(8px);
+    border-bottom:1px solid var(--line)}
+  nav.toc .wrap{display:flex;gap:4px;overflow-x:auto;padding:10px 20px}
+  nav.toc a{white-space:nowrap;font-size:13px;font-weight:700;color:var(--muted);
+    padding:7px 12px;border-radius:999px}
+  nav.toc a:hover{background:#f1f5f9;color:var(--emerald-d);text-decoration:none}
+
+  section{padding:40px 0;border-bottom:1px solid var(--line)}
+  h2{font-size:26px;font-weight:900;display:flex;align-items:center;gap:10px;margin-bottom:6px}
+  h2 .n{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;
+    border-radius:11px;background:var(--emerald);color:#fff;font-size:15px;box-shadow:var(--shadow)}
+  h3{font-size:17px;font-weight:800;margin:22px 0 10px;color:#0b3b30}
+  p.muted{color:var(--muted);margin-bottom:10px}
+
+  .grid{display:grid;gap:16px}
+  .cols-2{grid-template-columns:repeat(2,1fr)}
+  .cols-3{grid-template-columns:repeat(3,1fr)}
+  @media(max-width:860px){.cols-2,.cols-3{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px;box-shadow:var(--shadow)}
+  .card h4{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .card p{font-size:13.5px;color:#475569}
+  .pill{display:inline-block;font-size:11px;font-weight:800;padding:3px 9px;border-radius:999px;
+    background:var(--emerald-l);color:var(--emerald-d);margin:2px 4px 2px 0}
+  .pill.amber{background:#fef3c7;color:#b45309}
+  .pill.rose{background:#ffe4e6;color:#be123c}
+  .pill.indigo{background:#e0e7ff;color:#3730a3}
+  .pill.sky{background:#e0f2fe;color:#075985}
+  .pill.slate{background:#f1f5f9;color:#475569}
+
+  /* Table */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border-radius:12px;overflow:hidden;
+    border:1px solid var(--line);box-shadow:var(--shadow)}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#0f172a;color:#d1fae5;font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:#f8fafc}
+  td code{white-space:nowrap}
+
+  /* Tree (light, readable) */
+  .filetree{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px 10px;box-shadow:var(--shadow);
+    font-size:14px;overflow-x:auto}
+  .filetree ul{list-style:none;margin:0;padding-left:22px;position:relative}
+  .filetree>ul{padding-left:6px}
+  .filetree li{position:relative;padding:3px 0}
+  .filetree ul ul::before{content:"";position:absolute;left:8px;top:0;bottom:12px;border-left:1.5px dashed #cbd5e1}
+  .filetree .row{display:flex;align-items:baseline;gap:8px;border-radius:8px;padding:3px 8px}
+  .filetree .row:hover{background:#f0fdf4}
+  .filetree .ic{font-size:14px;width:18px;text-align:center;flex:0 0 auto}
+  .filetree .nm{font-weight:700;color:#0b3b30}
+  .filetree .nm.file{font-weight:600;color:#334155;font-family:"JetBrains Mono",monospace;font-size:13px}
+  .filetree .cm{color:#94a3b8;font-size:12px;margin-left:auto;padding-left:14px;white-space:nowrap}
+  @media(max-width:720px){.filetree .cm{display:none}}
+
+  /* SVG diagram wrapper */
+  .diagram{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:var(--shadow);overflow-x:auto}
+  .diagram svg{display:block;width:100%;height:auto;min-width:640px}
+  .dg-cap{font-size:12px;color:var(--muted);text-align:center;margin-top:8px}
+
+  /* Flow diagram */
+  .flow{display:flex;flex-wrap:wrap;align-items:stretch;gap:0;margin-top:10px}
+  .node{flex:1;min-width:150px;background:#fff;border:2px solid var(--line);border-radius:14px;padding:14px;
+    text-align:center;box-shadow:var(--shadow)}
+  .node .t{font-weight:800;font-size:13.5px}
+  .node .d{font-size:11.5px;color:var(--muted);margin-top:3px}
+  .arrow{display:flex;align-items:center;justify-content:center;color:var(--emerald);font-size:24px;font-weight:900;padding:0 6px}
+  @media(max-width:860px){.arrow{transform:rotate(90deg);padding:6px 0}.flow{flex-direction:column}}
+
+  .layer{border-radius:14px;padding:16px 18px;margin-bottom:12px;border:1px solid var(--line);background:#fff;box-shadow:var(--shadow)}
+  .layer .lh{font-weight:900;font-size:14px;display:flex;align-items:center;gap:8px}
+  .layer .items{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px}
+
+  .kv{display:flex;gap:10px;align-items:flex-start;font-size:13.5px;margin:6px 0}
+  .kv .k{font-weight:800;min-width:120px;color:#0b3b30}
+
+  footer{padding:30px 0;color:var(--muted);font-size:13px;text-align:center}
+  .tag{font-size:11px;font-weight:800;color:#fff;background:var(--emerald);padding:3px 8px;border-radius:6px}
+  .mark{background:linear-gradient(transparent 60%,#bbf7d0 60%)}
+  ul.clean{list-style:none}
+  ul.clean li{font-size:13.5px;padding:5px 0 5px 22px;position:relative;color:#334155}
+  ul.clean li::before{content:"▸";position:absolute;left:4px;color:var(--emerald);font-weight:900}
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <div class="sub">🐾 Cộng đồng Thú cưng Việt Nam • Technical Documentation</div>
+    <h1>PetMap — Kiến trúc &amp; Chi tiết Dự án</h1>
+    <p class="lead">Ứng dụng web/mobile kiểu Google Maps giúp cộng đồng tìm <b>quán cafe, nhà hàng, cửa hàng, công viên và phòng khám thú y 24/7</b> thân thiện với thú cưng tại TP.HCM — kèm hệ thống Thẻ Căn Cước Định Danh Thú Cưng (QR), đánh giá cộng đồng và trang quản trị.</p>
+    <div class="badge-row">
+      <span class="badge">React 19</span>
+      <span class="badge">TypeScript</span>
+      <span class="badge">Vite 6</span>
+      <span class="badge">Tailwind CSS v4</span>
+      <span class="badge">React-Leaflet</span>
+      <span class="badge">Supabase</span>
+      <span class="badge">Vitest</span>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#overview">Tổng quan</a>
+    <a href="#stack">Công nghệ</a>
+    <a href="#architecture">Kiến trúc</a>
+    <a href="#structure">Cấu trúc thư mục</a>
+    <a href="#components">Components</a>
+    <a href="#services">Services</a>
+    <a href="#utils">Utils &amp; Types</a>
+    <a href="#data">Mô hình dữ liệu</a>
+    <a href="#flow">Luồng dữ liệu</a>
+    <a href="#security">Bảo mật (RLS)</a>
+    <a href="#features">Tính năng</a>
+    <a href="#quality">Build &amp; Test</a>
+  </div>
+</nav>
+
+<main class="wrap">
+
+<!-- OVERVIEW -->
+<section id="overview">
+  <h2><span class="n">1</span> Tổng quan</h2>
+  <p class="muted">PetMap là một <b>Single-Page Application (SPA)</b> hoạt động theo mô hình <span class="mark">on-demand</span>: không hiển thị địa điểm nào cho đến khi người dùng tìm kiếm, bật định vị hoặc chọn bộ lọc. Ứng dụng ưu tiên mobile-first, có thể chạy hoàn toàn offline nhờ cơ chế fallback <code>localStorage</code> khi chưa cấu hình Supabase.</p>
+  <div class="grid cols-3" style="margin-top:14px">
+    <div class="card"><h4>🗺️ Bản đồ & Dẫn đường</h4><p>Google Maps tiles (Roadmap/Satellite), định tuyến đường thật qua OSRM, geocoding Nominatim, khám phá POI gần đây bằng Overpass API.</p></div>
+    <div class="card"><h4>🪪 Thẻ Căn Cước Boss</h4><p>Hồ sơ đa thú cưng (Multi-Pet) với Mã Định Danh, QR deterministic, in song ngữ Việt/Anh, tra cứu khi thú đi lạc.</p></div>
+    <div class="card"><h4>🛡️ Quản trị & Cộng đồng</h4><p>Trang Admin login-protected tại <code>/admin</code>, duyệt quán, kiểm duyệt review/báo cáo, đánh giá & xác thực từ cộng đồng.</p></div>
+  </div>
+</section>
+
+<!-- STACK -->
+<section id="stack">
+  <h2><span class="n">2</span> Ngăn xếp công nghệ</h2>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Frontend</h4>
+      <span class="pill">React 19</span><span class="pill">TypeScript 5.7</span><span class="pill">Vite 6</span>
+      <span class="pill indigo">Tailwind CSS v4</span><span class="pill indigo">Lucide Icons</span>
+      <p style="margin-top:8px">JSX runtime mới của React 19, code-splitting qua <code>React.lazy</code> + <code>manualChunks</code>.</p>
+    </div>
+    <div class="card">
+      <h4>Bản đồ & Dịch vụ địa lý</h4>
+      <span class="pill sky">Leaflet + React-Leaflet</span><span class="pill sky">Google Maps Tiles</span>
+      <span class="pill sky">OSRM</span><span class="pill sky">Nominatim</span><span class="pill sky">Overpass API</span>
+    </div>
+    <div class="card">
+      <h4>Backend / Dữ liệu</h4>
+      <span class="pill">Supabase PostgreSQL</span><span class="pill">Supabase Auth</span><span class="pill">Supabase Storage</span>
+      <span class="pill amber">localStorage fallback</span>
+      <p style="margin-top:8px">Row-Level Security (RLS) với hàm <code>is_admin()</code> cho các thao tác kiểm duyệt.</p>
+    </div>
+    <div class="card">
+      <h4>Chất lượng</h4>
+      <span class="pill">Vitest</span><span class="pill">Testing Library</span><span class="pill">ESLint (flat config)</span>
+      <p style="margin-top:8px">28 unit test, build <code>tsc -b &amp;&amp; vite build</code>, lint 0 error.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section id="architecture">
+  <h2><span class="n">3</span> Kiến trúc tầng (Layered Architecture)</h2>
+  <p class="muted">Ứng dụng tách lớp rõ ràng theo trách nhiệm: UI → Logic thuần → Dịch vụ dữ liệu → Nguồn dữ liệu.</p>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 470" xmlns="http://www.w3.org/2000/svg" font-family="Plus Jakarta Sans, sans-serif">
+      <defs>
+        <marker id="ar" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#059669"/>
+        </marker>
+        <marker id="arUp" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6 Z" fill="#94a3b8"/>
+        </marker>
+      </defs>
+
+      <!-- Layer 1: Presentation -->
+      <rect x="40" y="20" width="820" height="88" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+      <text x="60" y="46" font-size="15" font-weight="800" fill="#047857">🎨 1 · Presentation Layer — src/components/</text>
+      <g font-size="12" font-weight="700" fill="#065f46">
+        <rect x="60"  y="60" width="120" height="30" rx="8" fill="#fff" stroke="#a7f3d0"/><text x="120" y="79" text-anchor="middle">PetMapView</text>
+        <rect x="192" y="60" width="140" height="30" rx="8" fill="#fff" stroke="#a7f3d0"/><text x="262" y="79" text-anchor="middle">PlaceDetailSheet</text>
+        <rect x="344" y="60" width="130" height="30" rx="8" fill="#fff" stroke="#a7f3d0"/><text x="409" y="79" text-anchor="middle">PetProfileModal</text>
+        <rect x="486" y="60" width="130" height="30" rx="8" fill="#fff" stroke="#a7f3d0"/><text x="551" y="79" text-anchor="middle">AdminPortalPage</text>
+        <rect x="628" y="60" width="110" height="30" rx="8" fill="#fff" stroke="#a7f3d0"/><text x="683" y="79" text-anchor="middle">PetIdCardView</text>
+        <rect x="750" y="60" width="92"  height="30" rx="8" fill="#fff" stroke="#a7f3d0"/><text x="796" y="79" text-anchor="middle">+ modals</text>
+      </g>
+
+      <!-- Layer 2: Domain Logic -->
+      <rect x="40" y="128" width="820" height="78" rx="14" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+      <text x="60" y="154" font-size="15" font-weight="800" fill="#3730a3">🧠 2 · Domain Logic — src/utils/</text>
+      <g font-size="12" font-weight="700" fill="#3730a3">
+        <rect x="60"  y="168" width="150" height="28" rx="8" fill="#fff" stroke="#c7d2fe"/><text x="135" y="186" text-anchor="middle">petCompatibility</text>
+        <rect x="222" y="168" width="110" height="28" rx="8" fill="#fff" stroke="#c7d2fe"/><text x="277" y="186" text-anchor="middle">validation</text>
+        <rect x="344" y="168" width="200" height="28" rx="8" fill="#fff" stroke="#c7d2fe"/><text x="444" y="186" text-anchor="middle">normalizeSearchText / openingStatus</text>
+        <rect x="556" y="168" width="200" height="28" rx="8" fill="#fff" stroke="#c7d2fe"/><text x="656" y="186" text-anchor="middle">calculateDistanceKm (Haversine)</text>
+      </g>
+
+      <!-- Layer 3: Service -->
+      <rect x="40" y="226" width="820" height="88" rx="14" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+      <text x="60" y="252" font-size="15" font-weight="800" fill="#075985">🔌 3 · Service Layer — src/services/ &amp; src/lib/</text>
+      <g font-size="12" font-weight="700" fill="#075985">
+        <rect x="60"  y="266" width="110" height="30" rx="8" fill="#fff" stroke="#bae6fd"/><text x="115" y="285" text-anchor="middle">placeService</text>
+        <rect x="182" y="266" width="120" height="30" rx="8" fill="#fff" stroke="#bae6fd"/><text x="242" y="285" text-anchor="middle">authPetService</text>
+        <rect x="314" y="266" width="110" height="30" rx="8" fill="#fff" stroke="#bae6fd"/><text x="369" y="285" text-anchor="middle">routingService</text>
+        <rect x="436" y="266" width="130" height="30" rx="8" fill="#fff" stroke="#bae6fd"/><text x="501" y="285" text-anchor="middle">geocodingService</text>
+        <rect x="578" y="266" width="160" height="30" rx="8" fill="#fff" stroke="#bae6fd"/><text x="658" y="285" text-anchor="middle">nearbyDiscoveryService</text>
+        <rect x="750" y="266" width="92"  height="30" rx="8" fill="#fff" stroke="#bae6fd"/><text x="796" y="285" text-anchor="middle">lib/supabase</text>
+      </g>
+
+      <!-- Layer 4: Data Source -->
+      <rect x="40" y="334" width="820" height="88" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="2"/>
+      <text x="60" y="360" font-size="15" font-weight="800" fill="#b45309">💾 4 · Data Source Layer</text>
+      <g font-size="12" font-weight="700">
+        <rect x="60"  y="374" width="170" height="32" rx="8" fill="#fff" stroke="#fcd34d"/><text x="145" y="394" text-anchor="middle" fill="#b45309">Supabase PostgreSQL</text>
+        <rect x="242" y="374" width="140" height="32" rx="8" fill="#fff" stroke="#fcd34d"/><text x="312" y="394" text-anchor="middle" fill="#b45309">Supabase Storage</text>
+        <rect x="394" y="374" width="170" height="32" rx="8" fill="#f8fafc" stroke="#cbd5e1"/><text x="479" y="394" text-anchor="middle" fill="#475569">localStorage (fallback)</text>
+        <rect x="576" y="374" width="266" height="32" rx="8" fill="#f8fafc" stroke="#cbd5e1"/><text x="709" y="394" text-anchor="middle" fill="#475569">OSRM · Nominatim · Overpass (external)</text>
+      </g>
+
+      <!-- Vertical arrows (requests down) -->
+      <line x1="430" y1="108" x2="430" y2="126" stroke="#059669" stroke-width="2.5" marker-end="url(#ar)"/>
+      <line x1="430" y1="206" x2="430" y2="224" stroke="#059669" stroke-width="2.5" marker-end="url(#ar)"/>
+      <line x1="430" y1="314" x2="430" y2="332" stroke="#059669" stroke-width="2.5" marker-end="url(#ar)"/>
+      <!-- Response up -->
+      <line x1="480" y1="332" x2="480" y2="314" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arUp)"/>
+      <line x1="480" y1="224" x2="480" y2="206" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arUp)"/>
+      <line x1="480" y1="126" x2="480" y2="108" stroke="#94a3b8" stroke-width="2" stroke-dasharray="4 3" marker-end="url(#arUp)"/>
+      <text x="395" y="122" font-size="10.5" fill="#059669" font-weight="700">request ▼</text>
+      <text x="486" y="122" font-size="10.5" fill="#94a3b8" font-weight="700">▲ data</text>
+    </svg>
+    <div class="dg-cap">Sơ đồ 4 tầng — yêu cầu đi xuống (xanh), dữ liệu trả về đi lên (xám nét đứt). Mỗi tầng chỉ phụ thuộc tầng ngay dưới.</div>
+  </div>
+
+  <div class="layer" style="border-left:5px solid var(--emerald);margin-top:16px">
+    <div class="lh">🎨 1. Presentation Layer — <code>src/components/</code></div>
+    <div class="items">
+      <span class="pill">PetMapView</span><span class="pill">PlaceDetailSheet</span><span class="pill">AddPlaceModal</span>
+      <span class="pill">PetProfileModal</span><span class="pill">PetIdCardView</span><span class="pill">AdminPortalPage</span>
+      <span class="pill">AuthModal</span><span class="pill">ConfirmDialog</span><span class="pill">ConditionBadge</span>
+    </div>
+  </div>
+
+  <div class="layer" style="border-left:5px solid var(--indigo)">
+    <div class="lh">🧠 2. Domain Logic Layer — <code>src/utils/</code></div>
+    <div class="items">
+      <span class="pill indigo">petCompatibility</span><span class="pill indigo">validation</span>
+      <span class="pill indigo">normalizeSearchText</span><span class="pill indigo">evaluateOpeningStatus</span>
+      <span class="pill indigo">calculateDistanceKm (Haversine)</span>
+    </div>
+  </div>
+
+  <div class="layer" style="border-left:5px solid var(--sky)">
+    <div class="lh">🔌 3. Service Layer — <code>src/services/</code> &amp; <code>src/lib/</code></div>
+    <div class="items">
+      <span class="pill sky">placeService</span><span class="pill sky">authPetService</span><span class="pill sky">routingService</span>
+      <span class="pill sky">geocodingService</span><span class="pill sky">nearbyDiscoveryService</span><span class="pill sky">imageUploadService</span>
+      <span class="pill sky">lib/supabase</span>
+    </div>
+  </div>
+
+  <div class="layer" style="border-left:5px solid var(--amber)">
+    <div class="lh">💾 4. Data Source Layer</div>
+    <div class="items">
+      <span class="pill amber">Supabase PostgreSQL</span><span class="pill amber">Supabase Storage</span>
+      <span class="pill slate">localStorage (fallback)</span>
+      <span class="pill slate">OSRM / Nominatim / Overpass (external)</span>
+    </div>
+  </div>
+</section>
+
+<!-- STRUCTURE -->
+<section id="structure">
+  <h2><span class="n">4</span> Cấu trúc thư mục</h2>
+  <div class="filetree">
+    <ul>
+      <li>
+        <div class="row"><span class="ic">📁</span><span class="nm">PetMap/</span><span class="cm">Thư mục gốc dự án</span></div>
+        <ul>
+          <li><div class="row"><span class="ic">📁</span><span class="nm">public/</span><span class="cm">PWA: manifest.webmanifest · sw.js · icon.svg</span></div></li>
+          <li>
+            <div class="row"><span class="ic">📁</span><span class="nm">supabase/</span></div>
+            <ul><li><div class="row"><span class="ic">🗄️</span><span class="nm file">schema.sql</span><span class="cm">Schema idempotent + RLS + is_admin()</span></div></li></ul>
+          </li>
+          <li>
+            <div class="row"><span class="ic">📁</span><span class="nm">docs/</span></div>
+            <ul><li><div class="row"><span class="ic">📄</span><span class="nm file">architecture.html</span><span class="cm">Tài liệu này</span></div></li></ul>
+          </li>
+          <li>
+            <div class="row"><span class="ic">📁</span><span class="nm">src/</span><span class="cm">Mã nguồn chính</span></div>
+            <ul>
+              <li><div class="row"><span class="ic">⚛️</span><span class="nm file">App.tsx</span><span class="cm">Root: state · routing /admin · bản đồ · bộ lọc</span></div></li>
+              <li><div class="row"><span class="ic">⚛️</span><span class="nm file">main.tsx</span><span class="cm">Entry + ConfirmProvider</span></div></li>
+              <li><div class="row"><span class="ic">🎨</span><span class="nm file">index.css</span><span class="cm">Tailwind v4 + font + ẩn scrollbar</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">components/</span><span class="cm">10 UI components</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">services/</span><span class="cm">6 service + 2 file test</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">utils/</span><span class="cm">Logic thuần + test (compatibility, validation)</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">types/</span><span class="cm">place.ts — types &amp; metadata constants</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">data/</span><span class="cm">mockPlaces · mockReviews (seed)</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">lib/</span><span class="cm">Supabase client + runtime config</span></div></li>
+              <li><div class="row"><span class="ic">📁</span><span class="nm">test/</span><span class="cm">setup.ts cho Vitest</span></div></li>
+            </ul>
+          </li>
+          <li><div class="row"><span class="ic">⚙️</span><span class="nm file">vite.config.ts</span><span class="cm">manualChunks (leaflet / supabase)</span></div></li>
+          <li><div class="row"><span class="ic">⚙️</span><span class="nm file">vitest.config.ts</span><span class="cm">jsdom + env Supabase rỗng</span></div></li>
+          <li><div class="row"><span class="ic">⚙️</span><span class="nm file">eslint.config.js</span><span class="cm">Flat config React + TS</span></div></li>
+          <li><div class="row"><span class="ic">🔑</span><span class="nm file">.env.example</span><span class="cm">VITE_SUPABASE_URL / ANON_KEY</span></div></li>
+        </ul>
+      </li>
+    </ul>
+  </div>
+</section>
+
+<!-- COMPONENTS -->
+<section id="components">
+  <h2><span class="n">5</span> Thành phần UI (Components)</h2>
+  <table>
+    <thead><tr><th>Component</th><th>Vai trò</th></tr></thead>
+    <tbody>
+      <tr><td><code>App.tsx</code></td><td>Root component: quản lý toàn bộ state, routing <code>/admin</code>, bộ lọc on-demand, Toast, điều phối modal.</td></tr>
+      <tr><td><code>PetMapView.tsx</code></td><td>Bản đồ Leaflet: marker tùy biến theo chính sách Pet, popup card, vẽ tuyến OSRM, GPS, chấm toạ độ.</td></tr>
+      <tr><td><code>PlaceDetailSheet.tsx</code></td><td>Drawer chi tiết quán: Bento grid thông tin, tương thích Boss, chỉ đường, review, báo cáo sai thông tin.</td></tr>
+      <tr><td><code>AddPlaceModal.tsx</code></td><td>Thêm quán: geocoding có debounce, tách toạ độ từ link Google Maps, upload ảnh, validation.</td></tr>
+      <tr><td><code>PetProfileModal.tsx</code></td><td>Quản lý Multi-Pet, 2 tab (Hồ sơ &amp; Tra cứu Mã Định Danh), preview Thẻ Căn Cước trực tiếp.</td></tr>
+      <tr><td><code>PetIdCardView.tsx</code></td><td>Thẻ Căn Cước ngang: QR SVG deterministic, lật mặt trước/sau, in song ngữ (escape XSS).</td></tr>
+      <tr><td><code>AdminPortalPage.tsx</code></td><td>Trang quản trị full-page: duyệt quán, sửa quán, kiểm duyệt review/report, registry Boss.</td></tr>
+      <tr><td><code>AuthModal.tsx</code></td><td>Đăng nhập / đăng ký qua Supabase Auth.</td></tr>
+      <tr><td><code>ConfirmDialog.tsx</code></td><td><span class="tag">Mới</span> <code>ConfirmProvider</code> + hook <code>useConfirm()</code> — popup xác nhận mọi thao tác sửa/xóa.</td></tr>
+      <tr><td><code>ConditionBadge.tsx</code></td><td>Badge hiển thị 10 điều kiện/tiện ích đem Pet theo.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- SERVICES -->
+<section id="services">
+  <h2><span class="n">6</span> Lớp Dịch vụ (Services)</h2>
+  <table>
+    <thead><tr><th>Service</th><th>Chức năng chính</th></tr></thead>
+    <tbody>
+      <tr><td><code>placeService.ts</code></td><td>CRUD địa điểm, review (tự tính lại rating), bookmark, báo cáo; seed chống trùng; luôn fallback localStorage.</td></tr>
+      <tr><td><code>authPetService.ts</code></td><td>Supabase Auth, phân quyền user/admin, <b>Multi-Pet: mỗi Boss 1 dòng</b>, tra cứu Mã Định Danh, báo lỗi đồng bộ.</td></tr>
+      <tr><td><code>routingService.ts</code></td><td>Gọi OSRM lấy hình học đường thật (polyline) + khoảng cách + thời gian.</td></tr>
+      <tr><td><code>geocodingService.ts</code></td><td>Nominatim: tìm địa chỉ trong HCMC + reverse geocode toạ độ.</td></tr>
+      <tr><td><code>nearbyDiscoveryService.ts</code></td><td>Overpass API: khám phá POI pet-friendly quanh vị trí; suy ra quận gần nhất.</td></tr>
+      <tr><td><code>imageUploadService.ts</code></td><td>Upload ảnh lên Supabase Storage bucket <code>petmap-images</code>.</td></tr>
+      <tr><td><code>lib/supabase.ts</code></td><td>Khởi tạo client; hỗ trợ cấu hình runtime + kiểm tra <code>isSupabaseReady()</code>.</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- UTILS -->
+<section id="utils">
+  <h2><span class="n">7</span> Logic thuần &amp; Kiểu dữ liệu</h2>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>🧮 <code>utils/petCompatibility.ts</code></h4>
+      <ul class="clean">
+        <li><code>evaluatePetCompatibility()</code> — đánh giá độ phù hợp Boss ↔ quán</li>
+        <li><code>normalizeSearchText()</code> — tìm kiếm Tiếng Việt không dấu</li>
+        <li><code>evaluateOpeningStatus()</code> — trạng thái Mở/Sắp đóng/Đã đóng theo giờ thực</li>
+        <li><code>calculateDistanceKm()</code> — khoảng cách Haversine</li>
+        <li><code>getCategoryFallbackImage()</code> — ảnh dự phòng theo danh mục</li>
+      </ul>
+    </div>
+    <div class="card">
+      <h4>✅ <code>utils/validation.ts</code></h4>
+      <ul class="clean">
+        <li><code>validatePlaceForm()</code> — validate toàn form quán</li>
+        <li><code>isValidLat/Lng</code>, <code>clampWeightKg</code></li>
+        <li><code>isValidPhone</code>, <code>isValidUrl</code>, <code>sanitizeText</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <h4>📘 <code>types/place.ts</code> — nguồn chân lý về kiểu dữ liệu</h4>
+    <p>Định nghĩa <code>Place</code>, <code>PlaceReview</code>, <code>PetProfile</code>, <code>PlaceReport</code> và các hằng metadata: <code>PLACE_CATEGORIES</code> (5 loại), <code>PET_POLICIES</code> (3 mức), <code>PET_CONDITIONS</code> (10 điều kiện), <code>HCMC_DISTRICTS</code>, <code>DISTRICT_COORDINATES</code>.</p>
+  </div>
+</section>
+
+<!-- DATA MODEL -->
+<section id="data">
+  <h2><span class="n">8</span> Mô hình dữ liệu (Supabase)</h2>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 430" xmlns="http://www.w3.org/2000/svg" font-family="Plus Jakarta Sans, sans-serif">
+      <defs>
+        <marker id="rel" markerWidth="12" markerHeight="12" refX="9" refY="4" orient="auto">
+          <path d="M0,0 L9,4 L0,8 Z" fill="#0ea5e9"/>
+        </marker>
+      </defs>
+      <style>
+        .tbl-h{font-size:13.5px;font-weight:800;fill:#fff}
+        .col{font-size:11.5px;fill:#334155;font-family:"JetBrains Mono",monospace}
+        .pk{font-weight:800;fill:#047857}
+        .fk{font-weight:800;fill:#c026d3}
+        .relb{font-size:10.5px;fill:#0369a1;font-weight:700}
+      </style>
+
+      <!-- places (center-left anchor) -->
+      <g>
+        <rect x="40" y="40" width="210" height="150" rx="10" fill="#fff" stroke="#059669" stroke-width="2"/>
+        <rect x="40" y="40" width="210" height="28" rx="10" fill="#059669"/>
+        <text x="54" y="59" class="tbl-h">🏪 places</text>
+        <text x="54" y="88"  class="col pk">id · uuid (PK)</text>
+        <text x="54" y="106" class="col">name · category</text>
+        <text x="54" y="124" class="col">pet_policy · lat/lng</text>
+        <text x="54" y="142" class="col">allowed_pet_types[]</text>
+        <text x="54" y="160" class="col">max_weight_kg</text>
+        <text x="54" y="178" class="col">verified · rating</text>
+      </g>
+
+      <!-- place_reviews (right-top) -->
+      <g>
+        <rect x="430" y="20" width="220" height="118" rx="10" fill="#fff" stroke="#0284c7" stroke-width="2"/>
+        <rect x="430" y="20" width="220" height="28" rx="10" fill="#0284c7"/>
+        <text x="444" y="39" class="tbl-h">⭐ place_reviews</text>
+        <text x="444" y="68"  class="col pk">id · uuid (PK)</text>
+        <text x="444" y="86"  class="col fk">place_id → places</text>
+        <text x="444" y="104" class="col">rating · comment</text>
+        <text x="444" y="122" class="col">policy_accurate</text>
+      </g>
+
+      <!-- place_reports (right-bottom) -->
+      <g>
+        <rect x="430" y="168" width="220" height="118" rx="10" fill="#fff" stroke="#e11d48" stroke-width="2"/>
+        <rect x="430" y="168" width="220" height="28" rx="10" fill="#e11d48"/>
+        <text x="444" y="187" class="tbl-h">🚩 place_reports</text>
+        <text x="444" y="216" class="col pk">id · uuid (PK)</text>
+        <text x="444" y="234" class="col fk">place_id → places</text>
+        <text x="444" y="252" class="col">reason · details</text>
+        <text x="444" y="270" class="col">status</text>
+      </g>
+
+      <!-- pet_profiles (bottom-left) -->
+      <g>
+        <rect x="40" y="250" width="230" height="150" rx="10" fill="#fff" stroke="#d97706" stroke-width="2"/>
+        <rect x="40" y="250" width="230" height="28" rx="10" fill="#d97706"/>
+        <text x="54" y="269" class="tbl-h">🪪 pet_profiles</text>
+        <text x="54" y="298" class="col pk">id · uuid (PK)</text>
+        <text x="54" y="316" class="col">user_id (logic)</text>
+        <text x="54" y="334" class="col">identity_code</text>
+        <text x="54" y="352" class="col">avatar_url · owner_phone</text>
+        <text x="54" y="370" class="col">type · breed · weight_kg</text>
+        <text x="54" y="388" class="col">vaccinated</text>
+      </g>
+
+      <!-- user_roles (bottom-right) -->
+      <g>
+        <rect x="690" y="250" width="180" height="98" rx="10" fill="#fff" stroke="#4f46e5" stroke-width="2"/>
+        <rect x="690" y="250" width="180" height="28" rx="10" fill="#4f46e5"/>
+        <text x="704" y="269" class="tbl-h">👤 user_roles</text>
+        <text x="704" y="298" class="col pk">user_id (PK)</text>
+        <text x="704" y="316" class="col">role · user|admin</text>
+        <text x="704" y="334" class="col">created_at</text>
+      </g>
+
+      <!-- storage -->
+      <g>
+        <rect x="690" y="40" width="180" height="70" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="2" stroke-dasharray="5 4"/>
+        <text x="704" y="66" font-size="13" font-weight="800" fill="#475569">🖼️ storage</text>
+        <text x="704" y="88" class="col">bucket: petmap-images</text>
+      </g>
+
+      <!-- relations: places 1—* reviews -->
+      <path d="M250 95 C 350 95, 360 80, 428 80" fill="none" stroke="#0ea5e9" stroke-width="2" marker-end="url(#rel)"/>
+      <text x="300" y="78" class="relb">1 ─ *  (place_id)</text>
+      <!-- places 1—* reports -->
+      <path d="M250 135 C 350 135, 360 228, 428 228" fill="none" stroke="#0ea5e9" stroke-width="2" marker-end="url(#rel)"/>
+      <text x="300" y="150" class="relb">1 ─ *  (place_id)</text>
+      <!-- pet_profiles.user_id ~ user_roles.user_id (logical, dashed) -->
+      <path d="M270 325 C 460 325, 540 300, 688 300" fill="none" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 4"/>
+      <text x="430" y="318" class="relb" fill="#64748b">liên kết logic qua user_id (không FK cứng)</text>
+    </svg>
+    <div class="dg-cap">ERD — Khóa chính <b style="color:#047857">xanh (PK)</b>, khóa ngoại <b style="color:#c026d3">tím (FK)</b>. <code>pet_profiles.user_id</code> cố ý KHÔNG dùng FK cứng để hỗ trợ tài khoản cục bộ (tránh lỗi 23503).</div>
+  </div>
+
+  <table style="margin-top:16px">
+    <thead><tr><th>Bảng</th><th>Mục đích</th><th>Cột chính</th></tr></thead>
+    <tbody>
+      <tr><td><code>places</code></td><td>Địa điểm cafe/nhà hàng/store/thú y/công viên</td><td><code>category</code>, <code>pet_policy</code>, <code>pet_conditions[]</code>, <code>allowed_pet_types[]</code>, <code>max_weight_kg</code>, <code>lat/lng</code>, <code>verified</code></td></tr>
+      <tr><td><code>place_reviews</code></td><td>Đánh giá &amp; xác thực chính sách Pet từ cộng đồng</td><td><code>rating</code>, <code>comment</code>, <code>policy_accurate</code>, <code>pet_info</code></td></tr>
+      <tr><td><code>pet_profiles</code></td><td>Hồ sơ thú cưng — <b>mỗi Boss một dòng</b></td><td><code>identity_code</code>, <code>avatar_url</code>, <code>owner_phone</code>, <code>type</code>, <code>breed</code>, <code>weight_kg</code>, <code>vaccinated</code></td></tr>
+      <tr><td><code>user_roles</code></td><td>Phân quyền user / admin</td><td><code>user_id</code>, <code>role</code></td></tr>
+      <tr><td><code>place_reports</code></td><td>Báo cáo sai thông tin / đổi quy định quán</td><td><code>reason</code>, <code>details</code>, <code>status</code>, <code>suggested_policy</code></td></tr>
+      <tr><td class="mono">storage: petmap-images</td><td>Bucket công khai lưu ảnh quán &amp; avatar Boss</td><td>—</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- FLOW -->
+<section id="flow">
+  <h2><span class="n">9</span> Luồng dữ liệu</h2>
+  <h3>Luồng chung: UI → Service → (Supabase hoặc localStorage)</h3>
+
+  <div class="diagram">
+    <svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" font-family="Plus Jakarta Sans, sans-serif">
+      <defs>
+        <marker id="f1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#059669"/></marker>
+      </defs>
+      <!-- boxes -->
+      <g font-size="13" font-weight="800">
+        <rect x="20"  y="90" width="150" height="70" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+        <text x="95" y="120" text-anchor="middle" fill="#047857">Component</text>
+        <text x="95" y="140" text-anchor="middle" font-size="10.5" font-weight="600" fill="#065f46">Thao tác người dùng</text>
+
+        <rect x="230" y="90" width="160" height="70" rx="12" fill="#e0f2fe" stroke="#0284c7" stroke-width="2"/>
+        <text x="310" y="120" text-anchor="middle" fill="#075985">Service</text>
+        <text x="310" y="140" text-anchor="middle" font-size="10.5" font-weight="600" fill="#075985">place / authPet Service</text>
+
+        <polygon points="450,125 520,88 590,125 520,162" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="520" y="122" text-anchor="middle" fill="#b45309" font-size="11.5">isSupabaseReady()?</text>
+
+        <rect x="660" y="30"  width="210" height="70" rx="12" fill="#fff" stroke="#d97706" stroke-width="2"/>
+        <text x="765" y="60" text-anchor="middle" fill="#b45309">☁️ Supabase</text>
+        <text x="765" y="80" text-anchor="middle" font-size="10.5" font-weight="600" fill="#b45309">PostgreSQL · Auth · Storage</text>
+
+        <rect x="660" y="150" width="210" height="70" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="2"/>
+        <text x="765" y="180" text-anchor="middle" fill="#475569">💾 localStorage</text>
+        <text x="765" y="200" text-anchor="middle" font-size="10.5" font-weight="600" fill="#64748b">fallback khi offline</text>
+      </g>
+      <!-- arrows -->
+      <line x1="170" y1="125" x2="226" y2="125" stroke="#059669" stroke-width="2.5" marker-end="url(#f1)"/>
+      <line x1="390" y1="125" x2="446" y2="125" stroke="#059669" stroke-width="2.5" marker-end="url(#f1)"/>
+      <path d="M590 108 C 630 90, 640 70, 656 66" fill="none" stroke="#059669" stroke-width="2.5" marker-end="url(#f1)"/>
+      <text x="612" y="78" font-size="10.5" fill="#059669" font-weight="700">YES</text>
+      <path d="M590 142 C 630 160, 640 182, 656 184" fill="none" stroke="#94a3b8" stroke-width="2.5" marker-end="url(#f1)"/>
+      <text x="606" y="178" font-size="10.5" fill="#64748b" font-weight="700">NO / lỗi</text>
+    </svg>
+    <div class="dg-cap">Service luôn thử Supabase trước; nếu chưa cấu hình hoặc lỗi thì tự động ghi/đọc từ localStorage.</div>
+  </div>
+
+  <h3>Ví dụ: Lưu hồ sơ Boss (Multi-Pet) — sơ đồ tuần tự</h3>
+  <div class="diagram">
+    <svg viewBox="0 0 900 300" xmlns="http://www.w3.org/2000/svg" font-family="Plus Jakarta Sans, sans-serif">
+      <defs>
+        <marker id="s1" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#334155"/></marker>
+        <marker id="s2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#059669"/></marker>
+      </defs>
+      <!-- lifelines -->
+      <g font-size="12.5" font-weight="800" text-anchor="middle">
+        <rect x="40"  y="20" width="160" height="34" rx="9" fill="#ecfdf5" stroke="#059669"/><text x="120" y="42" fill="#047857">PetProfileModal</text>
+        <rect x="370" y="20" width="170" height="34" rx="9" fill="#e0f2fe" stroke="#0284c7"/><text x="455" y="42" fill="#075985">authPetService</text>
+        <rect x="700" y="20" width="160" height="34" rx="9" fill="#fffbeb" stroke="#d97706"/><text x="780" y="42" fill="#b45309">Supabase + Local</text>
+      </g>
+      <line x1="120" y1="54" x2="120" y2="285" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <line x1="455" y1="54" x2="455" y2="285" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <line x1="780" y1="54" x2="780" y2="285" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <!-- messages -->
+      <g font-size="11.5" font-weight="700" fill="#334155">
+        <line x1="120" y1="86" x2="452" y2="86" stroke="#334155" stroke-width="1.8" marker-end="url(#s1)"/>
+        <text x="286" y="80" text-anchor="middle">① saveUserPetProfileItem(userId, pet)</text>
+
+        <line x1="455" y1="124" x2="455" y2="124"/>
+        <rect x="300" y="108" width="310" height="24" rx="6" fill="#f1f5f9" stroke="#cbd5e1"/>
+        <text x="455" y="124" text-anchor="middle" fill="#475569">② Trùng Mã Định Danh? → nối Boss mới (không ghi đè)</text>
+
+        <line x1="455" y1="160" x2="778" y2="160" stroke="#059669" stroke-width="1.8" marker-end="url(#s2)"/>
+        <text x="616" y="154" text-anchor="middle" fill="#047857">③ Lưu localStorage ngay (UI phản hồi tức thì)</text>
+
+        <line x1="455" y1="196" x2="778" y2="196" stroke="#059669" stroke-width="1.8" marker-end="url(#s2)"/>
+        <text x="616" y="190" text-anchor="middle" fill="#047857">④ syncUserPetListToSupabase() — mỗi Boss 1 dòng</text>
+
+        <line x1="778" y1="232" x2="122" y2="232" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 4" marker-end="url(#s1)"/>
+        <text x="450" y="226" text-anchor="middle" fill="#64748b">⑤ Lỗi? getLastPetSyncError() dịch 23503/42501 → tiếng Việt</text>
+
+        <line x1="455" y1="268" x2="122" y2="268" stroke="#334155" stroke-width="1.8" marker-end="url(#s1)"/>
+        <text x="286" y="262" text-anchor="middle">⑥ Trả danh sách Boss đã cập nhật → render</text>
+      </g>
+    </svg>
+    <div class="dg-cap">Luồng tuần tự: ưu tiên phản hồi UI tức thì (localStorage), sau đó đồng bộ Supabase theo từng dòng Boss.</div>
+  </div>
+
+  <h3>Workflow on-demand</h3>
+  <p class="muted">Màn hình khởi đầu trống. Chỉ khi người dùng <b>tìm kiếm</b>, bật <b>"Vị trí của tôi"</b> hoặc chọn <b>bộ lọc</b> thì danh sách &amp; marker mới được tải và hiển thị.</p>
+</section>
+
+<!-- SECURITY -->
+<section id="security">
+  <h2><span class="n">10</span> Bảo mật — Row-Level Security</h2>
+  <p class="muted">Hàm <code>is_admin()</code> (SECURITY DEFINER) nhận diện admin qua bảng <code>user_roles</code> hoặc email bắt đầu bằng <code>admin@</code>.</p>
+  <table>
+    <thead><tr><th>Bảng</th><th>Đọc</th><th>Thêm</th><th>Sửa</th><th>Xóa</th></tr></thead>
+    <tbody>
+      <tr><td><code>places</code></td><td>Public</td><td>Public</td><td>Public (wiki cộng đồng)</td><td><span class="pill rose">Chỉ admin</span></td></tr>
+      <tr><td><code>place_reviews</code></td><td>Public</td><td>Public</td><td>—</td><td><span class="pill rose">Chỉ admin</span></td></tr>
+      <tr><td><code>place_reports</code></td><td><span class="pill rose">Chỉ admin</span></td><td>Public</td><td><span class="pill rose">Chỉ admin</span></td><td><span class="pill rose">Chỉ admin</span></td></tr>
+      <tr><td><code>pet_profiles</code></td><td>Public*</td><td>Public</td><td>Public*</td><td>Public*</td></tr>
+    </tbody>
+  </table>
+  <p class="muted" style="margin-top:10px">* <code>pet_profiles</code> để public nhằm hỗ trợ tra cứu Mã Định Danh khi thú đi lạc và tài khoản cục bộ (hybrid auth). Khuyến nghị production: đổi update/delete thành <code>auth.uid() = user_id</code> (đã ghi chú trong <code>schema.sql</code>). Bản in Thẻ Căn Cước được <b>escape XSS</b> trước khi render.</p>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <h2><span class="n">11</span> Tính năng nổi bật</h2>
+  <div class="grid cols-3">
+    <div class="card"><h4>3 mức chính sách Pet</h4><p><span class="pill">Cho Pet</span><span class="pill amber">Có điều kiện</span><span class="pill rose">Cấm Pet</span> + 10 điều kiện/tiện ích chi tiết.</p></div>
+    <div class="card"><h4>Định tuyến đường thật</h4><p>Vẽ lộ trình OSRM trong app (2 lớp polyline kiểu Google Maps) hoặc chuyển sang Google Maps.</p></div>
+    <div class="card"><h4>Cấp cứu Thú Y 24/7</h4><p>Chế độ SOS lọc nhanh phòng khám thú y gần nhất, nút gọi trực tiếp.</p></div>
+    <div class="card"><h4>Multi-Pet &amp; Thẻ QR</h4><p>Nhiều Boss, Thẻ Căn Cước điện tử, chia sẻ link <code>/?petId=...</code>, in song ngữ.</p></div>
+    <div class="card"><h4>Đánh giá &amp; Báo cáo</h4><p>Review có xác thực chính sách, báo cáo sai thông tin gửi tới Admin.</p></div>
+    <div class="card"><h4>PWA</h4><p>manifest + service worker, cài được lên màn hình điện thoại.</p></div>
+  </div>
+</section>
+
+<!-- QUALITY -->
+<section id="quality">
+  <h2><span class="n">12</span> Build, Test &amp; Tối ưu</h2>
+  <div class="grid cols-2">
+    <div class="card">
+      <h4>Lệnh</h4>
+      <div class="kv"><span class="k mono">npm run dev</span><span>Dev server (Vite)</span></div>
+      <div class="kv"><span class="k mono">npm run build</span><span><code>tsc -b &amp;&amp; vite build</code></span></div>
+      <div class="kv"><span class="k mono">npm test</span><span>28 unit test (Vitest)</span></div>
+      <div class="kv"><span class="k mono">npm run lint</span><span>ESLint — 0 error</span></div>
+    </div>
+    <div class="card">
+      <h4>Tối ưu đã áp dụng</h4>
+      <ul class="clean">
+        <li>Code-split: bundle chính <b>869KB → 437KB</b></li>
+        <li>Vendor chunks riêng: leaflet, supabase</li>
+        <li>Lazy-load <code>AdminPortalPage</code></li>
+        <li><code>loading="lazy"</code> + fallback ảnh theo danh mục</li>
+        <li>Popup xác nhận cho mọi thao tác sửa/xóa</li>
+      </ul>
+    </div>
+  </div>
+  <h3>Phủ test</h3>
+  <p class="muted">Tìm kiếm Tiếng Việt không dấu · trạng thái giờ mở cửa · độ tương thích thú cưng · validation form · lưu trữ Multi-Pet · CRUD place + tính lại rating + bookmark + report.</p>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    PetMap v0.1.0 — Technical Documentation · Tạo bởi GitHub Copilot · Cập nhật 26/10/2026 ·
+    <span class="tag">React 19 + Supabase</span>
+  </div>
+</footer>
+
+</body>
+</html>

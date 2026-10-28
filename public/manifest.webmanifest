@@ -1,0 +1,18 @@
+{
+  "name": "PetMap — Bản đồ Cafe, Nhà hàng & Thú Y cho Pet",
+  "short_name": "PetMap",
+  "description": "Tra cứu quán Cafe, Nhà hàng, Store thân thiện với thú cưng và Cấp cứu Thú y 24/7 tại TP.HCM",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
